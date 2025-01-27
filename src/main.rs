@@ -9,10 +9,13 @@ use std::fs::Permissions;
 use std::io;
 use std::io::stdin;
 use std::io::Error;
+use std::io::Write;
 use std::os::unix::fs::FileExt;
 use std::path;
 use std::path::Path;
 use std::process;
+use std::process::Command;
+use std::process::Stdio;
 fn main() -> std::io::Result<()> {
     //!!! the options operating on ./ (working directory) will be refactored to take <PATH>
     //<PATH> is ./ if no PATH is specified
@@ -40,9 +43,31 @@ fn main() -> std::io::Result<()> {
 
             println!("logs/ folder successfully created");
         }
-        "-o" | "--out" => (),
+        "-o" | "--out" => {
+            if let Err(_) = is_len_valid(&args_buffer, 2, 2) {
+                return Ok(());
+            }
+
+            let file_path = "./logs/stdout.log";
+            let mut file = File::open(file_path)?;
+            if file.metadata()?.len() == 0 {
+                file.write("".as_bytes());
+            }
+
+            let mut tail_cargo_out = Command::new("tail")
+                .args(["-f", file_path])
+                .stdout(Stdio::inherit())
+                .spawn()
+                .expect("<tail -f .> fail to start");
+
+            println!("cargo_logger is now following stdout.log updates");
+
+            let tail_output = tail_cargo_out.wait();
+
+            assert!(tail_output.is_ok_and(|x| x.success()))
+        }
         "-e" | "--err" => (),
-        //arguments all (both log files), out, err
+        //Done
         "-t" | "--truncate" => {
             if let Err(_) = is_len_valid(&args_buffer, 3, 3) {
                 return Ok(());
@@ -56,7 +81,7 @@ fn main() -> std::io::Result<()> {
                 ),
             }
         }
-        //DONE
+        //Requires Refactor
         "-h" | "--help" => {
             if let Err(_) = is_len_valid(&args_buffer, 2, 2) {
                 return Ok(());
