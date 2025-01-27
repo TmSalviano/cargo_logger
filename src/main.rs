@@ -17,6 +17,11 @@ use std::process;
 use std::process::Command;
 use std::process::Stdio;
 fn main() -> std::io::Result<()> {
+    // Why the design choice of a wrapper? A wrapper is non intrusive. Thanks to cargo_logger
+    // being a wrapper you can choose if you want to create the log/ directory for every project
+    //you create. The wrapper desingn choice also allow for you to only pipe the stdout and stderr of
+    //cargo build and run commands when you want to, instead of being mandatory.
+
     //!!! the options operating on ./ (working directory) will be refactored to take <PATH>
     //<PATH> is ./ if no PATH is specified
     //<FILE_STREAM is out, err or all
@@ -47,26 +52,14 @@ fn main() -> std::io::Result<()> {
             if let Err(_) = is_len_valid(&args_buffer, 2, 2) {
                 return Ok(());
             }
-
-            let file_path = "./logs/stdout.log";
-            let mut file = File::open(file_path)?;
-            if file.metadata()?.len() == 0 {
-                file.write("".as_bytes());
-            }
-
-            let mut tail_cargo_out = Command::new("tail")
-                .args(["-f", file_path])
-                .stdout(Stdio::inherit())
-                .spawn()
-                .expect("<tail -f .> fail to start");
-
-            println!("cargo_logger is now following stdout.log updates");
-
-            let tail_output = tail_cargo_out.wait();
-
-            assert!(tail_output.is_ok_and(|x| x.success()))
+            tail("./logs/stdout.log")?;
         }
-        "-e" | "--err" => (),
+        "-e" | "--err" => {
+            if let Err(_) = is_len_valid(&args_buffer, 2, 2) {
+                return Ok(());
+            }
+            tail("./logs/stderr.log")?;
+        }
         //Done
         "-t" | "--truncate" => {
             if let Err(_) = is_len_valid(&args_buffer, 3, 3) {
@@ -174,4 +167,29 @@ fn truncate(argument: &str) -> std::io::Result<()> {
     }
     println!("Log files truncated successfully!");
     Ok(())
+}
+
+fn tail(argument: &str) -> io::Result<()> {
+    //Problem here
+    if ["./logs/stdout.log", "./logs/stderr.log"].contains(&argument) {
+        println!("Invalid input\nTry:\tcargo_logger -h or man cargo_logger for more information");
+        return Ok(());
+    }
+    let mut file = File::open(argument)?;
+    if file.metadata()?.len() == 0 {
+        file.write("".as_bytes());
+    }
+
+    let mut tail_cargo_out = Command::new("tail")
+        .args(["-f", argument])
+        .stdout(Stdio::inherit())
+        .spawn()
+        .expect("<tail -f .> fail to start");
+
+    println!("cargo_logger is now following stdout.log updates");
+
+    let tail_output = tail_cargo_out.wait();
+
+    assert!(tail_output.is_ok_and(|x| x.success()));
+    return Ok(());
 }
