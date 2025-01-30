@@ -23,7 +23,12 @@ fn main() -> std::io::Result<()> {
     //you create. The wrapper desingn choice also allow for you to only pipe the stdout and stderr of
     //cargo build and run commands when you want to, instead of being mandatory.
 
+
+
     //!!! the options operating on ./ (working directory) will be refactored to take <PATH>
+    //!     -> Maybe allowing the user of the cli to choose the path for every command
+    //!     -> will make the CLI very conter-intuitive. Maybe it is best to force the user
+    //!     -> to call the cli inside working directory
     //<PATH> is ./ if no PATH is specified
     //<FILE_STREAM is out, err or all
     //OPTIONS -c <PATH> -> logs/ dir with stdout.log and stderr.log |
@@ -82,27 +87,17 @@ fn main() -> std::io::Result<()> {
             }
         }
         "-r" | "--run" => {
-            let mut stderr_file = OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("./logs/stderr.log")?;
-            let mut stdout_file = OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("./logs/stdout.log")?;
-
-            let mut cargo_run = Command::new("cargo")
-                .args(["run"])
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn()
-                .expect("Faile to run cargo project");
-
-            let mut output = cargo_run.wait_with_output()?;
-
-            stdout_file.write_all(&mut output.stdout)?;
-            stderr_file.write_all(&mut output.stderr)?;
-        }
+            if let Err(_) = is_len_valid(&args_buffer, 2, 2) {
+                return Ok(());
+            }
+            cargo("run")?;
+        },
+        "-b" | "--build" => {
+            if let Err(_) = is_len_valid(&args_buffer, 2,  2) {
+                return Ok(());
+            }
+            cargo("build")?;
+        },
         //Requires Refactor
         "-h" | "--help" => {
             if let Err(_) = is_len_valid(&args_buffer, 2, 2) {
@@ -222,4 +217,32 @@ fn tail(argument: &str) -> io::Result<()> {
 
     assert!(tail_output.is_ok_and(|x| x.success()));
     return Ok(());
+}
+
+fn cargo(argument: &str) -> io::Result<()> {
+    if !["run", "build"].contains(&argument) {
+        println!("Invalid input\nTry:\tcargo_logger -h or man cargo_logger for more information");
+        return Ok(());
+    }
+    let mut stderr_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("./logs/stderr.log")?;
+    let mut stdout_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("./logs/stdout.log")?;
+
+    let mut cargo_run = Command::new("cargo")
+        .args([argument])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect(format!("Failed to {} cargo project", argument).as_str());
+
+    let mut output = cargo_run.wait_with_output()?;
+
+    stdout_file.write_all(&mut output.stdout)?;
+    stderr_file.write_all(&mut output.stderr)?;
+    Ok(())
 }
