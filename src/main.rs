@@ -170,8 +170,7 @@ fn truncate(argument: &str) -> std::io::Result<()> {
 }
 
 fn tail(argument: &str) -> io::Result<()> {
-    //Problem here
-    if ["./logs/stdout.log", "./logs/stderr.log"].contains(&argument) {
+    if !["./logs/stdout.log", "./logs/stderr.log"].contains(&argument) {
         println!("Invalid input\nTry:\tcargo_logger -h or man cargo_logger for more information");
         return Ok(());
     }
@@ -186,7 +185,11 @@ fn tail(argument: &str) -> io::Result<()> {
         .spawn()
         .expect("<tail -f .> fail to start");
 
-    println!("cargo_logger is now following stdout.log updates");
+    if argument == "./logs/stdout.log" {
+        println!("cargo_logger is now following stdout.log updates");
+    } else {
+        println!("cargo_logger is now following stderr.log updates")
+    }
 
     let tail_output = tail_cargo_out.wait();
 
