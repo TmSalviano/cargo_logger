@@ -162,9 +162,12 @@ fn truncate(argument: &str) -> std::io::Result<()> {
         let file_name = file_path.file_name();
 
         if argument == "all" || is_special_target(argument, file_name) {
-            open_options.open(file_path)?;
+            let mut file = open_options.open(file_path)?;
+            file.write(b"");
         }
+
     }
+
     println!("Log files truncated successfully!");
     Ok(())
 }
@@ -173,10 +176,6 @@ fn tail(argument: &str) -> io::Result<()> {
     if !["./logs/stdout.log", "./logs/stderr.log"].contains(&argument) {
         println!("Invalid input\nTry:\tcargo_logger -h or man cargo_logger for more information");
         return Ok(());
-    }
-    let mut file = File::open(argument)?;
-    if file.metadata()?.len() == 0 {
-        file.write("".as_bytes());
     }
 
     let mut tail_cargo_out = Command::new("tail")
