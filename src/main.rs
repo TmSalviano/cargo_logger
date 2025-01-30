@@ -9,6 +9,7 @@ use std::fs::Permissions;
 use std::io;
 use std::io::stdin;
 use std::io::Error;
+use std::io::Read;
 use std::io::Write;
 use std::os::unix::fs::FileExt;
 use std::path;
@@ -29,9 +30,15 @@ fn main() -> std::io::Result<()> {
     //        -o -> this follows the last lines of the stdout.log file with tail
     //        -e -> tails the stderr.log
     //        -t <FILE_STREAM> -> truncates the stderr and stoud log files
+    //        -r executes cargo run and piping the stdout and stderr to the log files
+    //        -b cargo builds and pipes the stdout and stderr to the log files
     //        -h -> displays help info
 
     let args_buffer: Vec<String> = env::args().into_iter().collect();
+    if args_buffer.len() == 1 {
+        println!("Type an option or read the man page.");
+        return Ok(());
+    }
     match args_buffer[1].as_str() {
         //DONE
         "-c" | "-create" => {
@@ -73,6 +80,28 @@ fn main() -> std::io::Result<()> {
                     "Invalid input\nTry:\tcargo_logger -h or man cargo_logger for more information"
                 ),
             }
+        }
+        "-r" | "--run" => {
+            let mut stderr_file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open("./logs/stderr.log")?;
+            let mut stdout_file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open("./logs/stdout.log")?;
+
+            let mut cargo_run = Command::new("cargo")
+                .args(["run"])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .expect("Faile to run cargo project");
+
+            let mut output = cargo_run.wait_with_output()?;
+
+            stdout_file.write_all(&mut output.stdout)?;
+            stderr_file.write_all(&mut output.stderr)?;
         }
         //Requires Refactor
         "-h" | "--help" => {
@@ -165,8 +194,6 @@ fn truncate(argument: &str) -> std::io::Result<()> {
             let mut file = open_options.open(file_path)?;
             file.write(b"");
         }
-
-        //Adding test comment
     }
 
     println!("Log files truncated successfully!");

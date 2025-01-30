@@ -1,3 +1,4 @@
 /target
 /logs
-*log
+/logs/stdout.log
+/logs/stderr.log
