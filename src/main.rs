@@ -166,6 +166,7 @@ fn truncate(argument: &str) -> std::io::Result<()> {
             file.write(b"");
         }
 
+        //Adding test comment
     }
 
     println!("Log files truncated successfully!");
